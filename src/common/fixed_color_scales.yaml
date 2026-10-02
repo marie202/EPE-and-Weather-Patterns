@@ -1,0 +1,62 @@
+# Fixed composite color scales -- pinned so a given field (Z500 mean anomaly, Z500
+# anomaly std-dev) maps to the same color across every bbox step and both the Z500-only
+# and RR pipelines, while EPE flag-frequency gets its own scale PER PIPELINE
+# (epe_flag_freq_z500 vs epe_flag_freq_rr/epe_flag_freq_highrisk) since RR's per-bin
+# frequencies run much hotter than the Z500-only pipeline's per-whole-regime ones.
+# Europe and North America are pooled and scaled INDEPENDENTLY (separate top-level
+# sections below) so North America's typically weaker anomalies don't wash out under a
+# range dominated by Europe -- epe_flag_freq_highrisk is the one exception, pooled
+# TOGETHER across both regions for direct side-by-side comparability. Computed by
+# scripts/compute_fixed_composite_scales.py from real pooled composite data. Every
+# z_04/z_04b/rr_03/rr_03b composite job sources scripts/ensure_fixed_color_scales.sh,
+# which checks _meta.definition_tag below against the EPE definition/cluster methods in
+# effect for that run and, on a mismatch, WARNS and falls back to per-call auto-scaling
+# for that run only -- it does NOT auto-regenerate this file; rerun
+# sbatch compute_fixed_composite_scales_tu_hpc.sh deliberately when the pinned production
+# EPE definition actually changes. Delete this file (or point --fixed-scales-yaml
+# elsewhere) to fall back to today's per-call auto-scaling.
+#
+# NOTE (2026-09-09): epe_flag_freq_rr.vmax for both regions is HAND-TUNED, not the pipeline's
+# default --rr-epe-pct=99.8 output -- europe's RR cell distribution has a long tail (p99.8 left
+# typical cells too pale), northamerica's is tightly clustered (p99.8 left almost no headroom,
+# too dark). europe=9.35 came from the "EPE flag-frequency percentile ladder" printed by
+# compute_fixed_composite_scales.py (p97); northamerica=8.41 is set ABOVE its own pooled range
+# (literal max was 5.56, see that same ladder) by deliberate request, not a percentile off
+# northamerica's own data. Overwritten by the next
+# `sbatch compute_fixed_composite_scales_tu_hpc.sh` unless --rr-epe-pct is split per-region in
+# that script by then -- re-apply by hand (or add that CLI split) if so.
+
+europe:
+  z500_mean_anom_gpm:
+    vmin: -0.8276928042077376
+    vmax: 0.8276928042077376
+  z500_std_gpm:
+    vmin: 0.0
+    vmax: 0.38167409360612187
+  epe_flag_freq_z500:
+    vmin: 0.0
+    vmax: 4.477612018585205
+  epe_flag_freq_rr:
+    vmin: 0.0
+    vmax: 9.35
+  epe_flag_freq_highrisk:
+    vmin: 0.0
+    vmax: 13.084112107753754
+northamerica:
+  z500_mean_anom_gpm:
+    vmin: -0.7569802322961822
+    vmax: 0.7569802322961822
+  z500_std_gpm:
+    vmin: 0.0
+    vmax: 0.3283262219048891
+  epe_flag_freq_z500:
+    vmin: 0.0
+    vmax: 2.968769502639761
+  epe_flag_freq_rr:
+    vmin: 0.0
+    vmax: 8.41
+  epe_flag_freq_highrisk:
+    vmin: 0.0
+    vmax: 13.084112107753754
+_meta:
+  definition_tag: v1_q999_sampleAll_cape0_cpFracMin01_lexmax_domainQ900_ward_ward

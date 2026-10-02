@@ -1,0 +1,31 @@
+name: weather-regimes
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.10
+  - pip
+  # core scientific stack
+  - numpy
+  - scipy
+  - pandas
+  - xarray
+  - dask  # required by xarray.open_mfdataset() on recent xarray (chunk manager)
+  - netcdf4
+  - matplotlib
+  - tqdm
+  # ML / clustering (used in notebooks)
+  - scikit-learn
+  # image / filtering utilities (used in notebooks + some scripts)
+  - scikit-image
+  # mapping / geo (used in notebooks)
+  - cartopy
+  - geopandas
+  - contextily
+  - shapely
+  - pyproj
+  # met / ERA5 tooling (used in notebooks)
+  - metpy
+  - cdsapi
+  # notebooks
+  - jupyterlab
+  - ipykernel

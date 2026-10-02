@@ -1,0 +1,35 @@
+germany:
+  label: Germany
+  region_id: germany
+  timezone: Europe/Berlin
+  # CDS bbox order used throughout epe: N, W, S, E
+  bbox:
+    N: 55.1
+    W: 5.9
+    S: 47.2
+    E: 15.0
+  regimes_dir: results/clustering/europe
+  era5_hourly_dir: data/raw/era5/extreme_precip_events/germany
+  # Optional: default reference point for "top cell" rankings (nearest grid-cell picked in notebook)
+  ref_point:
+    lat: 51.0
+    lon: 10.0
+
+ontario:
+  label: Southern Ontario
+  # On-disk folder for Step-12 extremes products.
+  region_id: ontario_south
+  timezone: America/Toronto
+  # Tight ontario_south AOI: same Δlat/Δlon as Germany → same ERA5 grid shape (0.25°).
+  # South = Ontario's southernmost extent (Middle Island ~41.676°N); centred on ref_point lon.
+  bbox:
+    N: 49.576
+    W: -83.55
+    S: 41.676
+    E: -74.45
+  regimes_dir: results/clustering/northamerica
+  era5_hourly_dir: data/raw/era5/extreme_precip_events/ontario_south
+  ref_point:
+    lat: 44.0
+    lon: -79.0
+

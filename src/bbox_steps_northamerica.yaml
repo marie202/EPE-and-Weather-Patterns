@@ -1,0 +1,30 @@
+version: 1
+definition: "N,W,S,E"
+description: "North America bbox shrinking steps (B0..B5) centered on the fixed Ontario tight-size box used in epe_bbox_check.ipynb, matching Europe step Δlat/Δlon (degrees), and constrained to remain within the North America regimes bbox (N80,W-180,S20,E-30)."
+
+# Center point from the fixed `BBOX_ONTARIO_TIGHTSIZE` placement in `src/epe/epe_bbox_check.ipynb`:
+#   lat_min_target = 42.0, dlat = (Germany tight Δlat) = 7.9  -> lat_center = 42.0 + 7.9/2 = 45.95
+#   lon_center = -79.4
+center:
+  lat: 45.95
+  lon: -79.4
+
+steps:
+  B0:
+    label: "North America baseline (20°–80°N, 180°–30°W)"
+    bbox: {N: 80.0, W: -180.0, S: 20.0, E: -30.0}
+  B1:
+    label: "Shrink step B1 (larger; start of even shrink to B5)"
+    bbox: {N: 74.00, W: -136.00, S: 23.00, E: -40.00}
+  B2:
+    label: "Shrink step B2 (even shrink B1→B5)"
+    bbox: {N: 68.74, W: -123.98, S: 26.99, E: -47.73}
+  B3:
+    label: "Shrink step B3 (even shrink B1→B5)"
+    bbox: {N: 63.47, W: -111.95, S: 30.98, E: -55.45}
+  B4:
+    label: "Shrink step B4 (even shrink B1→B5)"
+    bbox: {N: 58.21, W: -99.93, S: 34.96, E: -63.18}
+  B5:
+    label: "Ontario-centered minimum (Δlat=14.0, Δlon=17.0)"
+    bbox: {N: 52.95, W: -87.90, S: 38.95, E: -70.90}

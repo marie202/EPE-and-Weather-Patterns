@@ -1,0 +1,66 @@
+# Cross-bbox regime alignment for NORTH AMERICA — Z500-only Ward pipeline
+# (cluster_method="ward"), the pipeline plotted in
+# src/01_paper_figures/2_2_Results_Z500_Stats.ipynb.
+#
+# The Ward cut at each bbox step is an INDEPENDENT clustering: "regime 3" in B1 has no
+# guaranteed relationship to "regime 3" in B2. Each group below names ONE physical regime and
+# lists, per bbox step, which bbox-specific regime id actually corresponds to it. Read by:
+#   - the "Regime migration across bbox shrink steps" (alluvial / Wählerwanderung) section at
+#     the end of 2_2_Results_Z500_Stats.ipynb, to relabel every bbox step onto one consistent
+#     set of physical-regime ids before drawing the plot.
+#   - scripts/epe_06_regime_across_bboxes.py, if you still use it for the *multivariate*
+#     cross-bbox composite mosaics -- that script only requests whichever bbox steps a group's
+#     `members` mentions, so the B1-B4 entries here are simply ignored by it unless you've also
+#     built multivariate composites for those steps (see
+#     k_overrides_northamerica_multivariate.yaml, which currently only covers B0/B5).
+#
+# k per bbox step for THIS (ward) pipeline, from
+# results/01_paper_plots/2_results/01_z500_weather_regimes/stats_csv/regime_frequency_northamerica.csv:
+#   B0=4  B1=4  B2=4  B3=4  B4=4  B5=4
+#
+# Hand-assigned cross-bbox correspondence, transcribed from
+# regime_assigments.csv (NA block). Each group is one physical regime;
+# `members` gives, per bbox step, which bbox-specific regime id (independent
+# Ward cut at that step) corresponds to it.
+#
+# `short` is used in node labels / output filenames (keep it filesystem-safe: ASCII, no
+# spaces). `name` is the human-readable title shown in the alluvial plot's legend.
+
+region: northamerica
+groups:
+  - name: "Regime 1"
+    short: "Z1"
+    members:
+      B0: 1
+      B1: 2
+      B2: 2
+      B3: 4
+      B4: 2
+      B5: 1
+  - name: "Regime 2"
+    short: "Z2"
+    members:
+      B0: 2
+      B1: 4
+      B2: 3
+      B3: 3
+      B4: 4
+      B5: 4
+  - name: "Regime 3"
+    short: "Z3"
+    members:
+      B0: 3
+      B1: 1
+      B2: 1
+      B3: 2
+      B4: 1
+      B5: 3
+  - name: "Regime 4"
+    short: "Z4"
+    members:
+      B0: 4
+      B1: 3
+      B2: 4
+      B3: 1
+      B4: 3
+      B5: 2

@@ -1,0 +1,23 @@
+version: 1
+definition: "N,W,S,E"
+description: "Europe (Euro-Atlantic) bbox shrinking steps (B0..B5) for Z500 regime detection."
+
+steps:
+  B0:
+    label: "Euro-Atlantic regimes (baseline)"
+    bbox: {N: 90.0, W: -80.0, S: 30.0, E: 40.0}
+  B1:
+    label: "Shrink step B1"
+    bbox: {N: 83.8, W: -63.4, S: 33.0, E: 36.0}
+  B2:
+    label: "Shrink step B2"
+    bbox: {N: 77.6, W: -46.8, S: 36.0, E: 32.0}
+  B3:
+    label: "Shrink step B3"
+    bbox: {N: 71.4, W: -30.2, S: 39.0, E: 28.0}
+  B4:
+    label: "Shrink step B4"
+    bbox: {N: 65.2, W: -13.6, S: 42.0, E: 24.0}
+  B5:
+    label: "Germany-centered (minimum)"
+    bbox: {N: 59.0, W: 3.0, S: 45.0, E: 20.0}

@@ -1,0 +1,92 @@
+# =============================================================================
+# run_configs.yaml — canonical settings for all HPC shell scripts
+#
+# Priority chain (highest → lowest):
+#   sbatch --export=ALL,KEY=val   >   this file   >   script hardcoded default
+#
+# Usage: all _tu_hpc.sh scripts source load_run_config.sh at the top, which
+# reads this file and exports every key as an environment variable. You can
+# still override any value per-job with sbatch --export=ALL,KEY=val.
+#
+# DO NOT put infrastructure settings here (container paths, SLURM mem/time,
+# DASK workers, BLAS thread limits) — those live in the scripts themselves.
+#
+# PER-RUN SETTINGS (set via sbatch --export or shell export before submitting):
+#   REGION         europe | northamerica
+#   REGION_LABEL   germany | ontario_south | ontario
+#   STUDY_AREA     germany | ontario_south
+#   BBOX_STEP      B0 – B5
+#   REGIME_PIPELINE  multivariate | legacy
+#   SOURCE_FIELDS  auto-derived from REGIME_PIPELINE (see load_run_config.sh)
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# DOMAIN  (time span and season — consistent across all runs)
+# -----------------------------------------------------------------------------
+YEAR_SPAN: "1979-2025"          # full analysis period (used as default for all sub-spans)
+MONTHS: "05,06,07,08,09"        # convective season: May–September
+
+# -----------------------------------------------------------------------------
+# PREPROCESSING  (pipeline step 2)
+# -----------------------------------------------------------------------------
+SMOOTH_WINDOW: 11               # climatology smoothing window [days]
+DETREND_METHOD: domain_mean     # domain_mean | none | linear
+CLIM_SUBTRACT: smooth           # smooth | raw
+SIGMA_MODE: field               # field (per-grid-point σ) | scalar (area-mean σ)
+
+# -----------------------------------------------------------------------------
+# CLUSTERING  (pipeline step 8–9)
+# -----------------------------------------------------------------------------
+FINAL_K: 7                      # number of regimes/clusters
+CLUSTER_METHOD: ward            # ward (Ward HRC step 8) | kmeans (K-means step 9)
+VAR_THRESHOLD: 0.90             # PCA variance threshold for dimensionality reduction
+RANDOM_STATE: 42                # random seed (reproducibility)
+STOP_AFTER_STEP: 10             # stop pipeline after step N (2=prepro only, 8=HRC, 10=full)
+
+# -----------------------------------------------------------------------------
+# MULTIVARIATE FIELDS  (pipeline step 2 multivariate, steps 04_*)
+# SOURCE_FIELDS is auto-set by load_run_config.sh based on REGIME_PIPELINE:
+#   multivariate → z500,vo850,tcwv,deg0l
+#   legacy       → z500
+# Override explicitly with sbatch --export=ALL,SOURCE_FIELDS=z500,tcwv if needed.
+# -----------------------------------------------------------------------------
+
+# VO850 smoothing
+VO850_SMOOTHING_METHOD: none
+VO850_GAUSSIAN_SIGMA: 1.0
+VO850_COARSEN_FACTOR: 0         # 0 = no coarsening
+
+# Per-field epsilon (numerical stability)
+Z500_EPSILON: 20.0
+VO850_EPSILON: 1.0e-6
+TCWV_EPSILON: 1.0e-3
+DEG0L_EPSILON: 50.0
+
+# -----------------------------------------------------------------------------
+# EXTREME PRECIPITATION DETECTION  (epe.01a — daily)
+# -----------------------------------------------------------------------------
+PRECIP_METRIC: tp_daily_max     # tp_daily_max | tp_daily_sum | cp_daily_sum
+Q: "0.999"                      # percentile threshold (0.999 = 99.9th, all days)
+CAPE_THRESHOLD: 0               # CAPE > threshold required (0 = any CAPE; strict = >0)
+CP_FRAC_MIN: 0.01                # cp/tp fraction filter (NOT cp>0); 0.01 -> cpFracMin01 = cp >= 1% of tp
+EVENT_AREA_FRAC: 0.01           # min fractional area for flagging as event (1%)
+DAY_START_HOUR: 6               # local hour when analysis day starts (06–06 UTC)
+
+# -----------------------------------------------------------------------------
+# CONVECTIVE DURATION  (epe.01b — hourly)
+# -----------------------------------------------------------------------------
+EXTREMES_Q: "0.999"             # quantile for hourly convective duration threshold
+QUANTILE_SAMPLE: all_hours      # all_hours (all days) | wet_hours (tp>threshold only)
+EXTREMES_WET_THRESHOLD_MM: 0.1  # wet-hour threshold [mm/h] (used even when QUANTILE_SAMPLE=all_hours)
+EXTREMES_CAPE_THRESHOLD: 0      # CAPE threshold for convective filter
+YEO_JOHNSON: "1"               # 1 = use _yj_ preprocessing files; 0 / no_yj to disable
+HOURLY_PRECIP_METRIC: tp_hourly # tp_hourly | cp_hourly
+
+# -----------------------------------------------------------------------------
+# COMPOSITE PLOTS  (epe.06 / 12.07)
+# -----------------------------------------------------------------------------
+EPE_PRECIP_METRICS: "flag_frequency mean_tp"   # metrics for supplementary EPE PDFs
+EPE_PRECIP_DAY_FILTER: all_regime_days          # all_regime_days | extreme_days
+EPE_CLUSTER_METHOD: ward                        # cluster method used to label EPE composites
+Z500_RAW_MODE: fast             # fast (mean Z500 contours) | regime_mean | none
+CLIP_PCT: 2.0                   # colormap percentile clipping for cross-bbox plots (2 = 2/98)

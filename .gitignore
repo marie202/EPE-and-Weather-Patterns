@@ -1,0 +1,30 @@
+# macOS
+**/.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Temporary files
+*.wCYLtQ
+*_backup.*
+
+# Data and large outputs (tracked separately)
+data/
+logs/
+containers/
+
+# Large binary / output files
+*.sif
+*.nc
+*.pdf
+*.png
+*.jpg
+*.jpeg
+figures/
+results/

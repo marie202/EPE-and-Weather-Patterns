@@ -1,0 +1,59 @@
+cff-version: 1.2.0
+title: >-
+  EPE-and-Weather-Patterns: scale-dependent weather regime clustering
+  and extreme precipitation event linkage
+message: >-
+  If you use this software, please cite both the software (this record)
+  and the accompanying paper listed under preferred-citation.
+type: software
+license: MIT
+authors:
+  - given-names: Marie-Christin
+    family-names: Eckert
+    email: m.eckert@tu-berlin.de
+    affiliation: >-
+      Artificial Intelligence and Land Use Change, Department of Landscape
+      Architecture and Environmental Planning, Technische Universität Berlin,
+      Straße des 17. Juni 145, 10623 Berlin, Germany
+    # orcid: "https://orcid.org/TODO-0000-0000-0000-0000"
+  - given-names: Annette
+    family-names: Rudolph
+    affiliation: >-
+      Artificial Intelligence and Land Use Change, Department of Landscape
+      Architecture and Environmental Planning, Technische Universität Berlin,
+      Straße des 17. Juni 145, 10623 Berlin, Germany
+    # orcid: "https://orcid.org/TODO-0000-0000-0000-0000"
+  - given-names: Lisa
+    family-names: Schielicke
+    affiliation: Western University, London, ON, Canada
+    # orcid: "https://orcid.org/TODO-0000-0000-0000-0000"
+
+# TODO before release: uncomment and fill in the Zenodo DOI minted for this archive.
+# doi: 10.5281/zenodo.TODO
+# version: 1.0.0
+# date-released: "2026-TODO-TODO"
+
+keywords:
+  - weather regimes
+  - extreme precipitation
+  - ERA5
+  - clustering
+  - convective precipitation
+  - scale dependence
+
+preferred-citation:
+  type: article
+  title: >-
+    On the scale-dependence of weather regimes describing extreme
+    precipitation events
+  authors:
+    - given-names: Marie-Christin
+      family-names: Eckert
+    - given-names: Annette
+      family-names: Rudolph
+    - given-names: Lisa
+      family-names: Schielicke
+  # TODO before release: fill in journal, year, volume, pages and DOI.
+  # journal: TODO
+  # year: 2026
+  # doi: 10.5194/TODO

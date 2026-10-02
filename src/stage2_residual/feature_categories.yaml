@@ -1,0 +1,66 @@
+# Feature category + pressure-level metadata for residual-regime feature-importance
+# plots (colour = process family, shade = pressure level / "height").
+#
+# `category` values mirror the _PROCESS_CATEGORY mapping used for the ERA5
+# input-features LaTeX table in 01_paper_figures/1_Intro_Methods.ipynb (cell
+# building df_features): Dynamic, Thermodynamic, Convective, Boundary forcing.
+# Z500 itself is its own "target" category (the clustering target/baseline
+# row, not a predictor) and is always rendered as a flat light grey, never
+# shaded by level.
+#
+# level_order runs lightest -> darkest: surface fields (no vertical level,
+# e.g. SST, CAPE, TCWV) are lightest, 850 hPa next, up through 250 hPa
+# (darkest) for upper-level fields. Keeping the tier *positions* fixed across
+# categories means the same level lands at the same relative lightness in
+# every colour family, so lightness is directly comparable across categories
+# ("how high up" a regime's predictors sit), not just within one.
+
+category_colors:
+  target: "#ebebeb"            # Z500 baseline — flat, never shaded
+  dynamic: "#6a3d9a"           # purple — wind components, vertical velocity, vorticity
+  thermodynamic: "#1f5fa8"     # blue — temperature, humidity, moisture
+  convective: "#e07b1a"        # orange — CAPE, 0°C isotherm height
+  boundary_forcing: "#8c8c8c"  # grey — SST
+
+level_order: [surface, "850", "700", "600", "500", "250"]
+
+# Lightness band (0=white-ish, 1=black) each category's shade ramp is drawn
+# from, lightest tier -> darkest tier. "default" applies unless a category
+# has its own entry here. boundary_forcing gets its own, darker band: SST is
+# always at the "surface" tier (the lightest end of any ramp), and the
+# default light-end lightness (0.82) reads too close to the flat "target"
+# grey (Z500, 0.92 lightness) to tell apart at a glance -- SST needs a
+# visibly darker, unambiguous grey instead.
+level_shading:
+  default: {light: 0.82, dark: 0.30}
+  boundary_forcing: {light: 0.62, dark: 0.62}
+
+fields:
+  z500 baseline: {category: target,        level: null,     label: Z500}
+  uwnd250:       {category: dynamic,       level: "250",    label: U250}
+  uwnd500:       {category: dynamic,       level: "500",    label: U500}
+  uwnd700:       {category: dynamic,       level: "700",    label: U700}
+  uwnd850:       {category: dynamic,       level: "850",    label: U850}
+  vwnd250:       {category: dynamic,       level: "250",    label: V250}
+  vwnd500:       {category: dynamic,       level: "500",    label: V500}
+  vwnd700:       {category: dynamic,       level: "700",    label: V700}
+  vwnd850:       {category: dynamic,       level: "850",    label: V850}
+  w500:          {category: dynamic,       level: "500",    label: W500}
+  w700:          {category: dynamic,       level: "700",    label: W700}
+  w850:          {category: dynamic,       level: "850",    label: W850}
+  vo850:         {category: dynamic,       level: "850",    label: VO850}
+  temp500:       {category: thermodynamic, level: "500",    label: TEMP500}
+  temp700:       {category: thermodynamic, level: "700",    label: TEMP700}
+  temp850:       {category: thermodynamic, level: "850",    label: TEMP850}
+  rh500:         {category: thermodynamic, level: "500",    label: RH500}
+  rh600:         {category: thermodynamic, level: "600",    label: RH600}
+  rh700:         {category: thermodynamic, level: "700",    label: RH700}
+  rh850:         {category: thermodynamic, level: "850",    label: RH850}
+  qhum500:       {category: thermodynamic, level: "500",    label: QH500}
+  qhum700:       {category: thermodynamic, level: "700",    label: QH700}
+  qhum850:       {category: thermodynamic, level: "850",    label: QH850}
+  td2m:          {category: thermodynamic, level: surface,  label: TD2M}
+  tcwv:          {category: thermodynamic, level: surface,  label: TCWV}
+  cape:          {category: convective,    level: surface,  label: CAPE}
+  deg0l:         {category: convective,    level: surface,  label: DEG0L}
+  sst:           {category: boundary_forcing, level: surface, label: SST}

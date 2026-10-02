@@ -1,0 +1,23 @@
+# Suggested by rr_021 (subregime-k selection) — REVIEW BEFORE USE.
+#
+# Criteria: max silhouette on the actual k-means partition (not a Ward-cut proxy),
+# subject to a minimum-cluster-size guardrail scaled to each Z500 regime's own day
+# count. Confirmed (not chosen) by a stability check: mean pairwise Adjusted Rand
+# Index across independent random restarts on the same days (mean_ari >= 0.6 =>
+# 'stable' — is this k an artifact of one random init, or reproducible?).
+#
+# gap_optimal_k (also reported per regime below) is an INDEPENDENT cross-check:
+# Tibshirani et al. (2001) gap statistic, which -- unlike silhouette -- tests each
+# k against a structureless null reference rather than just ranking partitions
+# against each other. Where it disagrees with suggested_k, that's evidence for a
+# real 'second peak' worth a manual override, not just a close statistical call.
+#
+# Edit the k values below by hand if you disagree with a suggestion — rr_022
+# reads this file as an explicit --regime-k-spec, it does not re-derive k.
+
+k_per_z500_regime:
+  1: 2  # n_days=2013, max silhouette (WARNING: no candidate k kept every cluster >= 100 days — regime has only 2013 days total), UNSTABLE, mean_ari=0.00 < threshold -- consider a runner-up k, gap agrees (gap_optimal_k=2)
+  2: 2  # n_days=659, max silhouette (WARNING: no candidate k kept every cluster >= 100 days — regime has only 659 days total), UNSTABLE, mean_ari=0.01 < threshold -- consider a runner-up k, gap agrees (gap_optimal_k=2)
+  3: 2  # n_days=1337, max silhouette (WARNING: no candidate k was stable (mean_ari >= 0.6) among size-guardrail-satisfying k's — best available, treat as provisional), UNSTABLE, mean_ari=0.00 < threshold -- consider a runner-up k, gap agrees (gap_optimal_k=2)
+  4: 2  # n_days=1599, max silhouette (WARNING: no candidate k kept every cluster >= 100 days — regime has only 1599 days total), UNSTABLE, mean_ari=0.04 < threshold -- consider a runner-up k, gap agrees (gap_optimal_k=2)
+  5: 2  # n_days=1583, max silhouette (WARNING: no candidate k was stable (mean_ari >= 0.6) among size-guardrail-satisfying k's — best available, treat as provisional), UNSTABLE, mean_ari=0.09 < threshold -- consider a runner-up k, gap agrees (gap_optimal_k=2)

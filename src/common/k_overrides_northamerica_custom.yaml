@@ -1,0 +1,22 @@
+# Custom K per bbox step for North America summary PDFs (Step 9 / 10–11 file resolution).
+# Copy or point K_CONFIG at this file when submitting s13 / sbatch_bbox_run_summary.
+#
+# Each k must match the k used when clustering was run (filenames contain kmeans_kNN).
+# List on HPC, e.g.:
+#   ls results/clustering/northamerica/09_Z500_regimes_kmeans_k*_w11_*var90*1979-2025*.nc
+#
+# Submit (same K_CONFIG for both — clustering must match the report's file resolution):
+#   sbatch --export=ALL,K_CONFIG=src/summary_reports/k_overrides_northamerica_custom.yaml,... \
+#     z_03_run_regime_clustering_tu_hpc.sh
+#   sbatch --export=ALL,K_CONFIG=src/summary_reports/k_overrides_northamerica_custom.yaml,... \
+#     z_04_run_regime_report_tu_hpc.sh
+
+region: northamerica
+default_k: 4
+k_by_step:
+  B0: 4
+  B1: 4
+  B2: 4
+  B3: 4
+  B4: 4
+  B5: 4
