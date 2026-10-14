@@ -202,19 +202,20 @@ for step in B0 B1 B2 B3 B4 B5; do
   python steps/stage2/04_feature_relevance.py \
     --region europe --bbox-step "$step" \
     --mode regime --cluster-method ward \
-    --field-representation pca_block --max-modes-per-field 100 \
+    --field-representation domain_mean \
     --study-area germany --extreme-labels-path "$EXTREME_LABELS_PATH"
 done
 
 python steps/stage2/05_write_field_selection.py \
   --build-regime-map --region europe --bbox-step B5 --z500-k 7 \
-  --z500-cluster-method ward --field-representation pca_block
+  --z500-cluster-method ward --field-representation domain_mean --top-n-fields 3
 
 # 6-7. Per-regime logistic fit, then sub-regime bin edges
 python steps/stage2/06_logistic_fit.py \
   --region europe --bbox-step B5 --z500-k 7 \
   --z500-cluster-method ward --per-regime-mode \
   --regime-fields-map <path printed by step 5> \
+  --predictor-representation domain_mean --include-z500 \
   --extreme-labels-path "$EXTREME_LABELS_PATH" \
   --output-tag "$OUTPUT_TAG" --year-span 1979-2025 --smooth-window 11
 
@@ -236,6 +237,13 @@ python steps/stage2/10_export_subregime_persistence.py \
   --region europe --bbox-step B5 --z500-cluster-method ward \
   --output-tag "$OUTPUT_TAG" --n-bins 2 --bin-overrides-path "$BIN_OVERRIDES"
 ```
+
+Field selection (step 4) and the logistic fit (step 6) use the same predictors. Each field enters
+as its area-weighted (cos φ) domain-mean anomaly, and the Z500 domain-mean anomaly is included in
+both: the greedy selection scores every candidate on top of it, and `--include-z500` keeps it in
+the fit. A separate model is fitted per Z500 regime. `--field-representation pca_block` (step 4)
+and `--predictor-representation pca` (step 6) are the alternative that uses each field's PCA
+block (90 % variance, at most 100 modes); it overfits the few extreme days per regime.
 
 `--target-day-frac 0.3` is the pinned setting: it fixes the high bin to a fraction of each
 regime's days and so always yields two groups, unlike `--min-extreme-per-bin`, which collapses to

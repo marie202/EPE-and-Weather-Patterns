@@ -58,6 +58,24 @@ Switching `--fit-mode` does NOT change the output filename (same
 doesn't collide with an existing `in_sample` cache. `run_stage2_logistic_for_z500_regime`
 refuses to reuse a cached file whose `fit_mode` attr doesn't match the
 requested one (rather than silently mixing the two).
+
+PREDICTORS — `--predictor-representation {pca, domain_mean}` and
+`--include-z500` (2026-10-14; defaults `pca` / off = unchanged legacy behaviour):
+- `pca`: each selected field enters as its rr_00 `PCs_reduced` block (var90,
+  capped at max_modes_per_field), via the cached joint-features file.
+- `domain_mean`: each selected field enters as ONE column, its area-weighted
+  (cos lat) domain-mean anomaly — the SAME representation rr_01
+  `--field-representation domain_mean` scored the fields on, computed with the
+  same helpers (`feature_relevance._domain_mean_field`/`_domain_mean_anomaly`),
+  so the regression is the model the field selection actually evaluated.
+- `--include-z500`: additionally prepends the Z500 domain-mean anomaly as a
+  predictor (rr_01's greedy search always scores fields ON TOP OF that Z500
+  column, so this is needed for the regression to match the selected model
+  exactly). Within a regime it still varies day to day; the regime split
+  itself remains the Stage-1 conditioning.
+Like `--fit-mode`, neither option changes the output filename — pass a distinct
+`--output-tag`; the cache-read guard refuses to reuse a file written with a
+different `predictor_representation`/`include_z500`.
 """
 
 import json
@@ -70,12 +88,13 @@ import pandas as pd
 import xarray as xr
 
 from .feature_relevance import _load_extreme_labels
-from .per_regime_stage2 import prepare_stage2_inputs_for_z500_regime
+from .per_regime_stage2 import prepare_stage2_inputs_for_z500_regime, resolve_z500_day_subset
 
 __all__ = [
     "RegimeLogisticResult",
     "fit_regime_logistic",
     "fit_regime_logistic_out_of_fold",
+    "load_domain_mean_predictors",
     "run_stage2_logistic_for_z500_regime",
     "merge_per_regime_logistic_outputs",
     "bin_predicted_prob_per_regime",
@@ -90,6 +109,10 @@ DEFAULT_N_BINS = 2
 FIT_MODE_IN_SAMPLE = "in_sample"
 FIT_MODE_OOF_BLOCKED_CV = "out_of_fold_blocked_cv"
 VALID_FIT_MODES = (FIT_MODE_IN_SAMPLE, FIT_MODE_OOF_BLOCKED_CV)
+
+PREDICTORS_PCA = "pca"
+PREDICTORS_DOMAIN_MEAN = "domain_mean"
+VALID_PREDICTOR_REPRESENTATIONS = (PREDICTORS_PCA, PREDICTORS_DOMAIN_MEAN)
 
 # Same blocked-CV defaults as rr_021_stage2_LogRegr_Robustness.py's
 # DEFAULT_N_SPLITS_BLOCKED/DEFAULT_BLOCK_SIZE, kept as separate constants here
@@ -133,6 +156,39 @@ class RegimeLogisticResult:
     scaler_mean: np.ndarray
     scaler_scale: np.ndarray
     degenerate: bool
+    predictors: tuple[str, ...] = ()  # column-block order of `coef` (a PCA field = one block of PCs)
+
+
+def load_domain_mean_predictors(config, fields: Sequence[str]) -> dict[str, tuple[pd.DatetimeIndex, np.ndarray]]:
+    """Area-weighted domain-mean anomaly per field, as `{field: (normalized dates, 1-D values)}`,
+    over ALL days (subset to a regime's days later). Same helpers and file resolution rr_01
+    `--field-representation domain_mean` scores fields with: Z500 from its
+    data/preprocessed/ 03_Z500_anomaly file, every other field from its rr_00
+    03_MF_..._anomaly file (not X_matrix, which is already area-weighted for PCA)."""
+    from .feature_relevance import _domain_mean_anomaly, _domain_mean_field, _find_z500_anomaly_file
+
+    out: dict[str, tuple[pd.DatetimeIndex, np.ndarray]] = {}
+    for f in fields:
+        if f == "z500":
+            path = _find_z500_anomaly_file(
+                config.module_root, config.region, bbox_step=config.bbox_step,
+                smooth_window=config.smooth_window, use_yeo_johnson=config.yeo_johnson,
+            )
+            if path is None:
+                raise FileNotFoundError(f"No Z500 anomaly file for {config.region}/{config.bbox_step}")
+            times, vals = _domain_mean_anomaly(path, "z500")
+        else:
+            res = _domain_mean_field(
+                config.module_root, config.region, f, config.bbox_step,
+                smooth_window=config.smooth_window, use_yeo_johnson=config.yeo_johnson,
+                area_weight_tag=config.area_weight_tag,
+            )
+            if res is None:
+                raise FileNotFoundError(f"No rr_00 03_MF anomaly file for {f} ({config.region}/{config.bbox_step})")
+            times, vals = res
+        out[f] = (pd.DatetimeIndex(times).normalize(), np.asarray(vals, dtype=np.float64).reshape(-1))
+        print(f"[stage2_logistic] domain-mean predictor {f}: {len(out[f][0])} days")
+    return out
 
 
 def fit_regime_logistic(
@@ -239,6 +295,9 @@ def run_stage2_logistic_for_z500_regime(
     fit_mode: str = FIT_MODE_IN_SAMPLE,
     cv_n_splits: int = DEFAULT_CV_N_SPLITS,
     cv_block_size: int = DEFAULT_CV_BLOCK_SIZE,
+    predictor_representation: str = PREDICTORS_PCA,
+    include_z500: bool = False,
+    domain_mean_columns: dict[str, tuple[pd.DatetimeIndex, np.ndarray]] | None = None,
 ) -> RegimeLogisticResult:
     """Stage 2 [LOGISTIC, production] for one Z500 regime: reuse the SAME
     cached joint-features/Ward-HC building blocks the discrete k-means
@@ -254,9 +313,24 @@ def run_stage2_logistic_for_z500_regime(
     way. The cached `out_path` (if present) is only reused when its `fit_mode`
     attr matches the requested one -- switching `--fit-mode` without also
     changing `--output-tag` raises rather than silently mixing the two.
+
+    `predictor_representation`/`include_z500`: see module docstring "PREDICTORS".
+    `domain_mean_columns` (from `load_domain_mean_predictors`) is required whenever a
+    domain-mean column is needed (domain_mean representation, or include_z500). The
+    domain_mean path skips the PCA joint-features/Ward-HC build entirely.
     """
     if fit_mode not in VALID_FIT_MODES:
         raise ValueError(f"fit_mode must be one of {VALID_FIT_MODES}, got {fit_mode!r}")
+    if predictor_representation not in VALID_PREDICTOR_REPRESENTATIONS:
+        raise ValueError(f"predictor_representation must be one of {VALID_PREDICTOR_REPRESENTATIONS}, "
+                         f"got {predictor_representation!r}")
+    use_domain_mean = predictor_representation == PREDICTORS_DOMAIN_MEAN
+    if (use_domain_mean or include_z500) and domain_mean_columns is None:
+        raise ValueError("domain_mean_columns is required for predictor_representation='domain_mean' "
+                         "or include_z500=True (see load_domain_mean_predictors)")
+
+    fields = tuple(pca_paths_by_field.keys())
+    predictors = (("z500",) if include_z500 else ()) + fields
 
     if out_path.is_file() and not overwrite:
         with xr.open_dataset(out_path, chunks=None) as ds:
@@ -266,6 +340,15 @@ def run_stage2_logistic_for_z500_regime(
                     f"{out_path} was written with fit_mode={cached_fit_mode!r} but "
                     f"fit_mode={fit_mode!r} was requested -- pass a distinct --output-tag "
                     "for this fit mode, or --overwrite to replace the cached file."
+                )
+            # Files written before these options existed are PCA-only without Z500.
+            cached_repr = str(ds.attrs.get("predictor_representation", PREDICTORS_PCA))
+            cached_z500 = bool(int(ds.attrs.get("include_z500", 0)))
+            if (cached_repr, cached_z500) != (predictor_representation, include_z500):
+                raise ValueError(
+                    f"{out_path} was written with predictor_representation={cached_repr!r}, "
+                    f"include_z500={cached_z500} but {predictor_representation!r}, {include_z500} "
+                    "was requested -- pass a distinct --output-tag, or --overwrite to replace it."
                 )
             time_dim = ds["predicted_extreme_prob"].dims[0]
             day_index = pd.DatetimeIndex(ds[time_dim].values)
@@ -288,36 +371,57 @@ def run_stage2_logistic_for_z500_regime(
                 scaler_mean=scaler_mean,
                 scaler_scale=scaler_scale,
                 degenerate=bool(ds.attrs.get("degenerate", False)),
+                predictors=tuple(p for p in str(ds.attrs.get("predictors", "")).split("+") if p) or predictors,
             )
 
-    prepare_stage2_inputs_for_z500_regime(
-        z_regime_id=z_regime_id,
-        z500_regimes_path=z500_regimes_path,
-        pca_paths_by_field=pca_paths_by_field,
-        joint_features_alldays_path=joint_features_alldays_path,
-        joint_features_subset_path=joint_features_subset_path,
-        ward_hc_path=ward_hc_path,
-        overwrite=overwrite,
-        residualize=residualize,
-    )
+    if use_domain_mean:
+        # No PCA joint features needed: regime days come straight from the Stage-1 labels,
+        # predictors from the all-days domain-mean columns.
+        time_dim = "time"
+        feat_times = pd.DatetimeIndex(resolve_z500_day_subset(z500_regimes_path, z_regime_id)).normalize()
+        X_all = None
+    else:
+        prepare_stage2_inputs_for_z500_regime(
+            z_regime_id=z_regime_id,
+            z500_regimes_path=z500_regimes_path,
+            pca_paths_by_field=pca_paths_by_field,
+            joint_features_alldays_path=joint_features_alldays_path,
+            joint_features_subset_path=joint_features_subset_path,
+            ward_hc_path=ward_hc_path,
+            overwrite=overwrite,
+            residualize=residualize,
+        )
 
-    with xr.open_dataset(joint_features_subset_path, chunks=None) as ds:
-        time_dim = ds["joint_features"].dims[0]
-        feat_times = pd.DatetimeIndex(ds[time_dim].values).normalize()
-        X_all = np.asarray(ds["joint_features"].values, dtype=np.float64)
+        with xr.open_dataset(joint_features_subset_path, chunks=None) as ds:
+            time_dim = ds["joint_features"].dims[0]
+            feat_times = pd.DatetimeIndex(ds[time_dim].values).normalize()
+            X_all = np.asarray(ds["joint_features"].values, dtype=np.float64)
 
     label_times, y_all = _load_extreme_labels(extreme_labels_path, extreme_var)
     label_times = pd.DatetimeIndex(label_times).normalize()
 
+    dm_names = list(predictors) if use_domain_mean else (["z500"] if include_z500 else [])
     common = pd.Index(feat_times).intersection(pd.Index(label_times))
+    for name in dm_names:
+        common = common.intersection(pd.Index(domain_mean_columns[name][0]))
+    common = common.sort_values()
     if len(common) < len(feat_times):
         print(f"[stage2_logistic] Z500-{z_regime_id}: {len(feat_times)} regime days ∩ "
-              f"{len(label_times)} extreme-label days = {len(common)} common days")
-    idx_X = pd.Index(feat_times).get_indexer(common)
+              f"{len(label_times)} extreme-label days"
+              f"{' ∩ domain-mean predictor days' if dm_names else ''} = {len(common)} common days")
     idx_y = pd.Index(label_times).get_indexer(common)
-    X = X_all[idx_X]
     y = np.asarray(y_all[idx_y], dtype=np.int64)
     day_index = pd.DatetimeIndex(common)
+
+    # Column order = `predictors`: [z500 if include_z500] then the selected fields in
+    # greedy order (one domain-mean column each, or each field's PCA block).
+    blocks = []
+    for name in dm_names:
+        times, vals = domain_mean_columns[name]
+        blocks.append(vals[pd.Index(times).get_indexer(common)].reshape(-1, 1))
+    if X_all is not None:
+        blocks.append(X_all[pd.Index(feat_times).get_indexer(common)])
+    X = np.hstack(blocks)
 
     n_days = len(y)
     n_extreme = int(y.sum())
@@ -368,6 +472,9 @@ def run_stage2_logistic_for_z500_regime(
             "step": "09_per_regime_logistic",
             "z500_regime": int(z_regime_id),
             "fields": "+".join(pca_paths_by_field.keys()),
+            "predictors": "+".join(predictors),
+            "predictor_representation": predictor_representation,
+            "include_z500": int(include_z500),
             "n_days": int(n_days),
             "n_extreme": int(n_extreme),
             "degenerate": int(degenerate),
@@ -400,6 +507,7 @@ def run_stage2_logistic_for_z500_regime(
         scaler_mean=scaler_mean,
         scaler_scale=scaler_scale,
         degenerate=degenerate,
+        predictors=predictors,
     )
 
 
@@ -422,6 +530,8 @@ def merge_per_regime_logistic_outputs(
     overwrite: bool = False,
     fit_mode: str = FIT_MODE_IN_SAMPLE,
     extreme_labels_path: Path | str | None = None,
+    predictor_representation: str = PREDICTORS_PCA,
+    include_z500: bool = False,
 ) -> Path:
     """Flatten independent per-Z500-regime logistic fits into one file: a
     continuous `predicted_extreme_prob` per day plus which Z500 regime each
@@ -486,6 +596,9 @@ def merge_per_regime_logistic_outputs(
             "fit_mode": fit_mode,
             "fit_mode_caveat": FIT_MODE_CAVEAT_OOF_BLOCKED_CV if fit_mode == FIT_MODE_OOF_BLOCKED_CV else FIT_MODE_CAVEAT_IN_SAMPLE,
             "per_regime_fields": json.dumps({str(z): list(results[z].fields) for z in z_ids}),
+            "per_regime_predictors": json.dumps({str(z): list(results[z].predictors) for z in z_ids}),
+            "predictor_representation": predictor_representation,
+            "include_z500": int(include_z500),
             "per_regime_n_days": json.dumps({str(z): results[z].n_days for z in z_ids}),
             "per_regime_n_extreme": json.dumps({str(z): results[z].n_extreme for z in z_ids}),
             "per_regime_intercept": json.dumps({str(z): results[z].intercept for z in z_ids}),
@@ -769,12 +882,17 @@ def run_logistic_stage2(
     fit_mode: str = FIT_MODE_IN_SAMPLE,
     cv_n_splits: int = DEFAULT_CV_N_SPLITS,
     cv_block_size: int = DEFAULT_CV_BLOCK_SIZE,
+    predictor_representation: str = PREDICTORS_PCA,
+    include_z500: bool = False,
 ) -> Path:
     """Orchestrate the per-regime logistic fits + merge + summary CSV — the
     LOGISTIC counterpart of per_regime_stage2/auxiliary.run_pipeline's discrete
     per-regime k-means loop, without the rare-regime remap or regime
     characterisation steps (both cluster-label-specific; not meaningful for a
-    continuous index)."""
+    continuous index).
+
+    In domain_mean mode `pca_paths_by_field` values may be None (only its keys, the
+    field names, are used); domain-mean columns are loaded once for all regimes."""
     from .paths import ResidualWorkflowPaths
 
     paths = ResidualWorkflowPaths(config)
@@ -784,10 +902,19 @@ def run_logistic_stage2(
     if unknown:
         raise ValueError(f"--regimes contains ids not in the field map: {sorted(unknown)} (have {all_z})")
 
+    domain_mean_columns = None
+    dm_fields: list[str] = []
+    if include_z500:
+        dm_fields.append("z500")
+    if predictor_representation == PREDICTORS_DOMAIN_MEAN:
+        dm_fields += sorted({f for z in target_z for f in config.per_regime_field_map[z] if f != "z500"})
+    if dm_fields:
+        domain_mean_columns = load_domain_mean_predictors(config, dm_fields)
+
     results: dict[int, RegimeLogisticResult] = {}
     summary_rows = []
     for z in target_z:
-        fields_for_z = {f: pca_paths_by_field[f] for f in config.per_regime_field_map[z] if f != "z500"}
+        fields_for_z = {f: pca_paths_by_field.get(f) for f in config.per_regime_field_map[z] if f != "z500"}
         print(f"[stage2_logistic] Z500-{z}: fields={'+'.join(sorted(fields_for_z))} — "
               f"reusing/building cached joint features...")
         res = run_stage2_logistic_for_z500_regime(
@@ -806,6 +933,9 @@ def run_logistic_stage2(
             fit_mode=fit_mode,
             cv_n_splits=cv_n_splits,
             cv_block_size=cv_block_size,
+            predictor_representation=predictor_representation,
+            include_z500=include_z500,
+            domain_mean_columns=domain_mean_columns,
         )
         results[z] = res
         base_rate = res.n_extreme / res.n_days if res.n_days else float("nan")
@@ -815,6 +945,8 @@ def run_logistic_stage2(
             "z500_regime": z,
             "residualize": bool(config.residualize),
             "fields": "+".join(sorted(fields_for_z)),
+            "predictors": "+".join(res.predictors),
+            "predictor_representation": predictor_representation,
             "n_days": res.n_days,
             "n_extreme": res.n_extreme,
             "base_rate": round(base_rate, 4) if not np.isnan(base_rate) else float("nan"),
@@ -825,6 +957,7 @@ def run_logistic_stage2(
     merged_path = merge_per_regime_logistic_outputs(
         results, out_path=paths.logistic_index_path_per_regime(output_tag=output_tag), overwrite=config.overwrite,
         fit_mode=fit_mode, extreme_labels_path=extreme_labels_path,
+        predictor_representation=predictor_representation, include_z500=include_z500,
     )
     print(f"[stage2_logistic] Wrote {merged_path}")
 
@@ -879,6 +1012,16 @@ def main() -> int:
                          help=f"Contiguous-day block length for --fit-mode {FIT_MODE_OOF_BLOCKED_CV}'s fold "
                               f"assignment (default {DEFAULT_CV_BLOCK_SIZE}, matching "
                               "rr_021_stage2_LogRegr_Robustness.py). Ignored for in_sample.")
+    parser.add_argument("--predictor-representation", default=PREDICTORS_PCA,
+                         choices=list(VALID_PREDICTOR_REPRESENTATIONS),
+                         help=f"How each selected field enters the regression (default: {PREDICTORS_PCA}, "
+                              "unchanged legacy behaviour: its rr_00 PCA block). "
+                              f"{PREDICTORS_DOMAIN_MEAN}: one area-weighted domain-mean anomaly column per "
+                              "field -- the representation rr_01 --field-representation domain_mean "
+                              "selected the fields on. See module docstring 'PREDICTORS'.")
+    parser.add_argument("--include-z500", action="store_true",
+                         help="Also use the Z500 domain-mean anomaly as a predictor (rr_01's greedy "
+                              "search scores every field on top of it). Default off.")
     args = parser.parse_args()
 
     if not args.per_regime_mode:
@@ -907,15 +1050,15 @@ def main() -> int:
         return 1
 
     all_fields = sorted({f for fs in config.per_regime_field_map.values() for f in fs if f != "z500"})
-    pca_paths_by_field: dict[str, Path] = {}
+    pca_paths_by_field: dict[str, Path | None] = {}
     missing = []
     for f in all_fields:
         p = resolve_mf_pca_path(config, f)
-        if p is not None:
-            pca_paths_by_field[f] = p
-        else:
+        pca_paths_by_field[f] = p
+        if p is None:
             missing.append(f)
-    if missing:
+    # PCA files are only read in pca mode; domain_mean mode reads the 03_MF anomaly files.
+    if missing and args.predictor_representation == PREDICTORS_PCA:
         print(f"ERROR: missing rr_00 07_MF_PCA files: {missing}", file=sys.stderr)
         return 1
 
@@ -923,12 +1066,18 @@ def main() -> int:
         print(f"[stage2_logistic] WARNING: --fit-mode {FIT_MODE_OOF_BLOCKED_CV} with no --output-tag -- "
               "this will collide with (and refuse to silently overwrite) any existing in_sample cache "
               "at the same path unless --overwrite is also set. Recommended: --output-tag oofcv.")
+    if (args.predictor_representation != PREDICTORS_PCA or args.include_z500) and not args.output_tag:
+        print(f"[stage2_logistic] WARNING: --predictor-representation {args.predictor_representation}"
+              f"{' --include-z500' if args.include_z500 else ''} with no --output-tag -- same filename as "
+              "the legacy PCA run; the cache-read guard refuses to mix them unless --overwrite is set. "
+              "Recommended: a distinct --output-tag (e.g. <tag>_dmz500).")
 
     run_logistic_stage2(
         config=config, z500_regimes_path=z500_regimes_path, pca_paths_by_field=pca_paths_by_field,
         extreme_labels_path=extreme_labels_path, extreme_var=args.extreme_var, regimes=regimes,
         output_tag=args.output_tag, fit_mode=args.fit_mode,
         cv_n_splits=args.cv_n_splits, cv_block_size=args.cv_block_size,
+        predictor_representation=args.predictor_representation, include_z500=args.include_z500,
     )
     return 0
 
