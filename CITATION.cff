@@ -15,23 +15,23 @@ authors:
       Artificial Intelligence and Land Use Change, Department of Landscape
       Architecture and Environmental Planning, Technische Universität Berlin,
       Straße des 17. Juni 145, 10623 Berlin, Germany
-    # orcid: "https://orcid.org/TODO-0000-0000-0000-0000"
+    orcid: "https://orcid.org/0009-0005-4003-6416"
   - given-names: Annette
     family-names: Rudolph
     affiliation: >-
       Artificial Intelligence and Land Use Change, Department of Landscape
       Architecture and Environmental Planning, Technische Universität Berlin,
       Straße des 17. Juni 145, 10623 Berlin, Germany
-    # orcid: "https://orcid.org/TODO-0000-0000-0000-0000"
+    orcid: "https://orcid.org/0000-0002-7368-5018"
   - given-names: Lisa
     family-names: Schielicke
     affiliation: Western University, London, ON, Canada
-    # orcid: "https://orcid.org/TODO-0000-0000-0000-0000"
+    orcid: "https://orcid.org/0000-0001-9083-4591"
 
-# TODO before release: uncomment and fill in the Zenodo DOI minted for this archive.
-# doi: 10.5281/zenodo.TODO
-# version: 1.0.0
-# date-released: "2026-TODO-TODO"
+version: "1.0.0"
+date-released: "2026-10-19"
+# The software DOI is minted by Zenodo on release; add it afterwards:
+# doi: 10.5281/zenodo.XXXXXXX
 
 keywords:
   - weather regimes
@@ -53,7 +53,22 @@ preferred-citation:
       family-names: Rudolph
     - given-names: Lisa
       family-names: Schielicke
-  # TODO before release: fill in journal, year, volume, pages and DOI.
-  # journal: TODO
-  # year: 2026
-  # doi: 10.5194/TODO
+  # Fill in once the paper is published:
+  # journal: ...
+  # year: ...
+  # doi: ...
+
+references:
+  - type: data
+    title: >-
+      Daily Z500 Circulation Regimes and Sub-Regimes Prone to Extreme
+      Precipitation for Germany and Southern Ontario (ERA5, May–September
+      1979–2025)
+    authors:
+      - given-names: Marie-Christin
+        family-names: Eckert
+      - given-names: Annette
+        family-names: Rudolph
+      - given-names: Lisa
+        family-names: Schielicke
+    doi: 10.5281/zenodo.23472858
