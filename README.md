@@ -1,5 +1,7 @@
 # Weather regimes and extreme precipitation events
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23473383.svg)](https://doi.org/10.5281/zenodo.23473383)
+
 Code accompanying:
 
 > Eckert, M.-C., Rudolph, A., and Schielicke, L.:
@@ -266,3 +268,5 @@ Code: MIT, see [LICENSE](LICENSE). ERA5 is subject to the Copernicus licence.
 ## Citing
 
 See [CITATION.cff](CITATION.cff).
+
+Results data (daily regime and sub-regime assignments): https://doi.org/10.5281/zenodo.23472858

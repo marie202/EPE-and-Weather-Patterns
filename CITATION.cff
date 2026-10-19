@@ -10,27 +10,20 @@ license: MIT
 authors:
   - given-names: Marie-Christin
     family-names: Eckert
-    affiliation: >-
-      Artificial Intelligence and Land Use Change, Department of Landscape
-      Architecture and Environmental Planning, Technische Universität Berlin,
-      Straße des 17. Juni 145, 10623 Berlin, Germany
+    affiliation: "Technische Universität Berlin, Chair of Artificial Intelligence and Land Use Change, Straße des 17. Juni 145, 10623 Berlin, Germany"
     orcid: "https://orcid.org/0009-0005-4003-6416"
   - given-names: Annette
     family-names: Rudolph
-    affiliation: >-
-      Artificial Intelligence and Land Use Change, Department of Landscape
-      Architecture and Environmental Planning, Technische Universität Berlin,
-      Straße des 17. Juni 145, 10623 Berlin, Germany
+    affiliation: "Technische Universität Berlin, Chair of Artificial Intelligence and Land Use Change, Straße des 17. Juni 145, 10623 Berlin, Germany"
     orcid: "https://orcid.org/0000-0002-7368-5018"
   - given-names: Lisa
     family-names: Schielicke
-    affiliation: Western University, London, ON, Canada
+    affiliation: "Department of Physics and Astronomy, The University of Western Ontario, London, ON N6A 3K7, Canada"
     orcid: "https://orcid.org/0000-0001-9083-4591"
 
 version: "1.0.0"
 date-released: "2026-10-19"
-# The software DOI is minted by Zenodo on release; add it afterwards:
-# doi: 10.5281/zenodo.XXXXXXX
+doi: 10.5281/zenodo.23473383
 
 keywords:
   - weather regimes
